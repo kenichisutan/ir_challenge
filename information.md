@@ -8,9 +8,10 @@ Quick reference of what each iteration does, why it was added, and what to try n
 |-----------|---------|-----|------------|--------|
 | 1 — TF-IDF | 0.4536 | 0.3616 | 0.7325 | Strong lexical baseline |
 | 2 — BM25 | 0.3726 | 0.2805 | 0.6015 | Regressed |
-| 3 — TF-IDF + MiniLM + RRF | **0.5336** | **0.4367** | **0.8378** | **Current best** |
+| 3 — TF-IDF + MiniLM + RRF | 0.5336 | 0.4367 | 0.8378 | Strong hybrid; superseded by Iteration 4 |
+| 4 — rich text + tuned RRF + MiniLM | **0.5508** | **0.4558** | **0.8398** | **Current best** (rich text + RRF tuning) |
 
-Primary metric for ranking: **NDCG@10**.
+Primary metric for ranking: **NDCG@10**. Use `iteration_4.zip` as the reference submission until a later iteration beats it.
 
 ## Iteration 1
 
@@ -82,22 +83,39 @@ Primary metric for ranking: **NDCG@10**.
   - `NDCG@10: 0.5336`
   - `MAP: 0.4367`
   - `Recall@100: 0.8378`
-- **Outcome:** best so far on all three metrics; use `iteration_3.zip` as the reference submission until a later iteration beats it.
+- **Outcome:** strong on all metrics; superseded by Iteration 4. Keep `iteration_3.zip` as a lighter-weight fallback (no full-corpus re-encode).
+
+## Iteration 4
+
+- **Method:** Same hybrid family as Iteration 3, plus **both** of the following at once:
+  - **RRF tuning:** `RRF_K=40`, `FUSION_DEPTH=300` (vs Iteration 3’s 60 / 200).
+  - **Rich text:** `title + abstract +` first **2000** characters of `full_text` (whitespace-normalized) for **queries and corpus** on both TF-IDF and dense paths.
+- **Dense corpus:** Precomputed MiniLM vectors are title+abstract-only, so this iteration **re-encodes all 20k corpus documents** at runtime with MiniLM for a consistent dense space (expect ~1–2 minutes on CPU for corpus batches).
+- **Output files:**
+  - `submissions/iteration_4/submission_data.json`
+  - `submissions/iteration_4/iteration_4.zip`
+- **Script:** `code/iteration_4.py`
+- **Codabench scores:**
+  - `NDCG@10: 0.5508`
+  - `MAP: 0.4558`
+  - `Recall@100: 0.8398`
+- **Outcome:** best so far on all three metrics (+0.0172 NDCG@10 vs Iteration 3); primary submission is `iteration_4.zip`.
 
 ---
 
-## Ideas for Iteration 4+ (brainstorm)
+## Ideas for Iteration 5+ (brainstorm)
+
+Iteration 4 already combined RRF tuning + truncated `full_text`. Next knobs:
 
 Ordered roughly by effort vs likely impact on **NDCG@10**:
 
-1. **Tune the hybrid you already have**
-   - RRF constant `k` (e.g. 20, 40, 80, 100).
-   - Fusion depth (e.g. top-300 or top-500 from each retriever before RRF) to surface more overlap candidates.
+1. **More RRF / fusion tuning**
+   - Try other `k` (e.g. 20, 80) and depths (400–500) if Iteration 4 underperforms.
    - Weighted RRF or score interpolation (normalize TF-IDF cosine and dense dot product, then blend) if RRF plateaus.
 
-2. **Richer text for sparse and/or dense**
-   - Add a **truncated `full_text`** prefix to query and corpus strings (same cap for both sides) so citations and methods appear without blowing up length.
-   - **Title upweighting** for sparse (repeat title tokens or separate title field BM25 — careful with BM25 alone; hybrid may tolerate it better).
+2. **Text / field tweaks**
+   - **Title upweighting** for sparse (repeat title tokens or separate title channel).
+   - Adjust `MAX_FULLTEXT_CHARS` (e.g. 1000 vs 3000) or use intro paragraphs only.
 
 3. **Stronger dense encoder**
    - **SPECTER / SPECTER2** (citation-trained) for scientific papers — replace or add as a third list in RRF (TF-IDF + MiniLM + SPECTER) if runtime and deps are acceptable.
