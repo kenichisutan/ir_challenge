@@ -6,3 +6,4 @@ matplotlib>=3.7.0
 seaborn>=0.12.0
 tqdm>=4.65.0
 pyarrow>=12.0.0
+rank-bm25>=0.2.2

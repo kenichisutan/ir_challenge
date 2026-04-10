@@ -34,20 +34,32 @@ Quick reference of what each iteration does, why it was added, and what to try n
 - Establishes a clean and reproducible baseline.
 - Creates a stable foundation for comparing later improvements (BM25, dense retrieval, hybrid fusion).
 
-### Local Evaluation Snapshot
+### Codabench Scores
 
-- `NDCG@10: 0.484150`
-- `MAP@100: 0.380420`
-- `Recall@100: 0.751153`
-
-Computed with:
-- `scripts/evaluate_submission.py`
+- `NDCG@10: 0.4536`
+- `MAP: 0.3616`
+- `Recall@100: 0.7325`
 
 ### Next Iterations (Planned)
 
 - **Iteration 2:** BM25 sparse retrieval baseline.
 - **Iteration 3:** Dense retrieval with MiniLM embeddings.
 - **Iteration 4:** Hybrid retrieval (e.g., RRF of sparse + dense).
+
+## Iteration 2
+
+- **Method:** BM25 (`title + abstract`) with `k1=1.2`, `b=0.75`.
+- **Prediction size:** Top-100 corpus documents per query.
+- **Output files:**
+  - `submissions/iteration_2/submission_data.json`
+  - `submissions/iteration_2/iteration_2.zip`
+- **Script:** `code/iteration_2.py`
+- **Why this change:** stronger lexical ranking than plain TF-IDF baseline.
+- **Codabench scores:**
+  - `NDCG@10: 0.3726`
+  - `MAP: 0.2805`
+  - `Recall@100: 0.6015`
+- **Outcome:** significantly worse than Iteration 1; do not use as current best submission.
 
 ---
 
