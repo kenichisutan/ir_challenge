@@ -24,11 +24,22 @@ def challenge_dir() -> Path:
 def data_paths() -> dict[str, Path]:
     root = challenge_dir()
     data = root / "data"
+    candidates = [
+        data / "held_out_queries.parquet",
+        root / "held_out_queries.parquet",
+        root / "starter_kit" / "held_out_queries.parquet",
+    ]
+    held_out = next((p for p in candidates if p.exists()), None)
+    queries = held_out if held_out is not None else data / "queries.parquet"
+    queries_source = str(queries.relative_to(root)) if queries.exists() else str(queries)
     return {
         "challenge_dir": root,
         "data_dir": data,
-        "queries_path": data / "queries.parquet",
+        "queries_path": queries,
+        "queries_source": queries_source,
+        "using_held_out_queries": held_out is not None,
         "corpus_path": data / "corpus.parquet",
+        "sample_submission_path": data / "sample_submission.json",
     }
 
 
@@ -76,6 +87,25 @@ def validate_submission(
             raise ValueError(f"Query {qid}: expected {top_k} documents, got {len(ranked_docs)}")
         if not all(isinstance(doc_id, str) for doc_id in ranked_docs):
             raise ValueError(f"Query {qid}: all document IDs must be strings")
+        if len(set(ranked_docs)) != top_k:
+            raise ValueError(f"Query {qid}: duplicate document IDs found in top-{top_k}")
+
+
+def validate_doc_ids_in_corpus(submission: Dict[str, List[str]], corpus_doc_ids: List[str]) -> None:
+    corpus_set = set(corpus_doc_ids)
+    invalid = 0
+    for ranked_docs in submission.values():
+        for doc_id in ranked_docs:
+            if doc_id not in corpus_set:
+                invalid += 1
+    if invalid > 0:
+        raise ValueError(f"Submission contains {invalid} doc IDs not found in corpus")
+
+
+def load_sample_query_ids(sample_submission_path: Path) -> List[str]:
+    with sample_submission_path.open("r", encoding="utf-8") as f:
+        sample = json.load(f)
+    return [str(qid) for qid in sample.keys()]
 
 
 def save_submission(submission: Dict[str, List[str]], output_file: Path) -> None:

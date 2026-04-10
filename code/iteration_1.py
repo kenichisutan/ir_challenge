@@ -47,6 +47,7 @@ from submission_utils import (
     load_queries_corpus,
     save_submission,
     validate_submission,
+    validate_doc_ids_in_corpus,
     DEFAULT_TOP_K,
 )
 
@@ -89,16 +90,24 @@ def build_tfidf_submission(queries: pd.DataFrame, corpus: pd.DataFrame, top_k: i
 
 def main() -> None:
     data = data_paths()
+    if not data["using_held_out_queries"]:
+        raise RuntimeError(
+            "Submission mode requires held-out queries. "
+            "Add `held_out_queries.parquet` to `data/`, project root, or `starter_kit/`."
+        )
     paths = {**data, **iteration_submission_paths(ITERATION_NAME)}
     queries, corpus = load_queries_corpus(paths["queries_path"], paths["corpus_path"])
     submission = build_tfidf_submission(queries=queries, corpus=corpus, top_k=TOP_K)
+    # Per challenge instructions, submission keys must match held_out_queries.parquet.
     expected_query_ids = queries["doc_id"].astype(str).tolist()
     validate_submission(submission=submission, expected_query_ids=expected_query_ids, top_k=TOP_K)
+    validate_doc_ids_in_corpus(submission=submission, corpus_doc_ids=corpus["doc_id"].astype(str).tolist())
     save_submission(submission=submission, output_file=paths["output_file"])
     create_submission_zip(submission_file=paths["output_file"], zip_file=paths["zip_file"])
 
     print("Iteration 1 submission generated.")
     print(f"Queries: {len(queries)} | Corpus: {len(corpus)} | Top-K: {TOP_K}")
+    print(f"Query source: {paths['queries_source']}")
     print(f"Saved to: {paths['output_file']}")
     print(f"Zipped to: {paths['zip_file']}")
 
