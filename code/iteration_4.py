@@ -139,6 +139,30 @@ def build_hybrid_submission(
     return submission
 
 
+def compute_iter4_fused_indices(
+    queries: pd.DataFrame,
+    corpus: pd.DataFrame,
+    model: SentenceTransformer,
+    top_k: int = TOP_K,
+    fusion_depth: int = FUSION_DEPTH,
+) -> np.ndarray:
+    """Corpus row indices after Iteration 4 hybrid, shape (n_queries, top_k)."""
+    query_texts = queries.apply(lambda r: format_rich_text(r, MAX_FULLTEXT_CHARS), axis=1).tolist()
+    corpus_texts = corpus.apply(lambda r: format_rich_text(r, MAX_FULLTEXT_CHARS), axis=1).tolist()
+
+    tfidf_ranks = rank_with_tfidf_topk(query_texts, corpus_texts, top_k=fusion_depth)
+
+    print("Encoding corpus with MiniLM (rich text) …")
+    corpus_emb = encode_minilm(model, corpus_texts)
+    print("Encoding queries with MiniLM (rich text) …")
+    query_emb = encode_minilm(model, query_texts)
+
+    dense_ranks = rank_dense_topk(query_emb, corpus_emb, top_k=fusion_depth)
+    fused = rrf_fuse_two_lists(tfidf_ranks, dense_ranks, k=RRF_K, top_n=top_k)
+
+    return np.stack(fused, axis=0)
+
+
 def main() -> None:
     data = data_paths()
     if not data["using_held_out_queries"]:
